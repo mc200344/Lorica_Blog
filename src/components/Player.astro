@@ -1,0 +1,1097 @@
+---
+// ══════════════════════════════════════════════════════════════════
+//   全局音乐播放器 —— 配置区
+//  在下方修改配置，保存后：
+//   - 本地预览（pnpm dev）会自动热更新
+//   - 部署前运行 pnpm build 重新构建
+// ══════════════════════════════════════════════════════════════════
+const playerConfig = {
+  // 网易云 API 地址：
+  //  - 本地开发：http://localhost:3000（双击项目根目录 start-music-api.bat 启动）
+  //  - 线上部署：必须用你自己部署的在线 API（公共实例不稳定/经常 403，Vercel 不兼容），
+  //    部署到 Railway / Render / Glitch 的方法见 D:\deepseek work\music-api-online\README.md
+  //    部署完成后把下面的地址换成 https://你的项目地址
+  apiBase: 'https://music-api-lgev.vercel.app',
+
+  // 播放平台（当前仅支持网易云，netease）
+  platform: 'netease',
+
+  // ↓↓↓ 在这里填入你的网易云歌单（可填纯数字 ID，也可直接粘贴完整分享链接）↓↓↓
+  // 例如：https://music.163.com/#/playlist?id=5230089726
+  playlistId: '2012222947',
+
+  // 是否自动开始播放歌单第一首
+  autoPlay: true,
+};
+// ══════════════════════════════════════════════════════════════════
+---
+
+<!-- 配置桥接：由顶部 playerConfig 注入，脚本读取（不在界面显示） -->
+<div id="player-config" data-config={JSON.stringify(playerConfig)} class="hidden"></div>
+
+<!-- ═══════════ 全局可折叠播放器小组件 ═══════════ -->
+<div
+  id="player-widget"
+  class="relative mb-4 w-full overflow-hidden rounded-2xl border border-base-300 bg-base-200/70 shadow-xl backdrop-blur-md"
+>
+  <!-- 折叠条（始终可见）：封面 + 曲名 + 播放 + 折叠箭头 -->
+  <div id="player-header" class="flex w-full items-center gap-3 px-4 py-3">
+    <button id="player-toggle" class="flex min-w-0 flex-1 items-center gap-3 text-left" title="展开 / 折叠播放器">
+      <img id="mini-cover" class="h-9 w-9 shrink-0 rounded-lg object-cover" alt="封面" />
+      <div class="min-w-0 flex-1">
+        <p id="mini-title" class="truncate text-sm font-bold text-base-content">未播放</p>
+        <p id="mini-artist" class="truncate text-xs text-base-content/50">填入歌单 ID 开始播放</p>
+      </div>
+      <span id="collapse-icon" class="shrink-0 text-base-content/50 transition-transform">▾</span>
+    </button>
+    <button
+      id="mini-play"
+      class="btn btn-circle btn-sm btn-primary shrink-0"
+      title="播放 / 暂停 (空格)"
+    >
+      <svg id="mini-play-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4">
+        <polygon points="7 4 20 12 7 20 7 4" fill="currentColor" />
+      </svg>
+    </button>
+  </div>
+
+  <!-- 展开区 -->
+  <div id="player-body" class="hidden border-t border-base-300/60 p-4">
+    <!-- 当前曲目信息 -->
+    <div class="flex items-center gap-3">
+      <img id="track-pic" class="h-14 w-14 shrink-0 rounded-xl object-cover shadow-lg" alt="封面" />
+      <div class="min-w-0 flex-1">
+        <h3 id="track-title" class="truncate text-sm font-bold leading-snug text-base-content">未播放</h3>
+        <p id="track-artist" class="mt-0.5 truncate text-xs text-base-content/50">—</p>
+        <p
+          id="track-meta"
+          class="mt-1.5 inline-flex rounded-full bg-base-300/50 px-2 py-0.5 text-[10px] text-base-content/50"
+        >
+          正在加载歌单…
+        </p>
+      </div>
+    </div>
+
+    <!-- 进度条 -->
+    <div class="mt-3 flex items-center gap-2">
+      <span id="time-cur" class="w-9 shrink-0 text-right text-[11px] tabular-nums text-base-content/50">0:00</span>
+      <input
+        id="seek"
+        type="range"
+        min="0"
+        max="1000"
+        value="0"
+        step="1"
+        class="range range-primary range-xs flex-1"
+        disabled
+      />
+      <span id="time-dur" class="w-9 shrink-0 text-[11px] tabular-nums text-base-content/50">0:00</span>
+    </div>
+
+    <!-- 控制区：上一首 / 播放 / 下一首 居中，其余按键左右分布 -->
+    <div class="mt-3 flex items-center justify-between gap-1">
+      <!-- 左侧：模式、歌词 -->
+      <div class="flex items-center gap-1">
+        <button
+          id="btn-mode"
+          class="grid h-9 w-9 place-items-center rounded-full text-base-content/70 transition hover:bg-base-300/60 hover:text-base-content"
+          title="顺序播放"
+        >
+          <span id="mode-icon"></span>
+        </button>
+        <button
+          id="btn-lyric"
+          class="grid h-9 w-9 place-items-center rounded-full border border-base-300 text-xs font-bold text-base-content/70 transition hover:text-base-content"
+          title="显示 / 隐藏歌词 (L)"
+        >
+          词
+        </button>
+      </div>
+      <!-- 中间：上一首 / 播放 / 下一首 -->
+      <div class="flex items-center gap-1.5">
+        <button
+          id="btn-prev"
+          class="grid h-9 w-9 place-items-center rounded-full text-base-content/70 transition hover:bg-base-300/60 hover:text-base-content"
+          title="上一首 (P)"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+            <polygon points="19 20 9 12 19 4 19 20" fill="currentColor" stroke="none" />
+            <line x1="5" y1="19" x2="5" y2="5" />
+          </svg>
+        </button>
+        <button
+          id="btn-play"
+          class="grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-content shadow-lg shadow-primary/30 transition hover:scale-105 active:scale-95"
+          title="播放 / 暂停 (空格)"
+        >
+          <svg id="play-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-5 w-5">
+            <polygon points="7 4 20 12 7 20 7 4" fill="currentColor" />
+          </svg>
+        </button>
+        <button
+          id="btn-next"
+          class="grid h-9 w-9 place-items-center rounded-full text-base-content/70 transition hover:bg-base-300/60 hover:text-base-content"
+          title="下一首 (N)"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+            <polygon points="5 4 15 12 5 20 5 4" fill="currentColor" stroke="none" />
+            <line x1="19" y1="5" x2="19" y2="19" />
+          </svg>
+        </button>
+      </div>
+      <!-- 右侧：音量（网易云式：悬停弹出竖向滑条，点击图标静音） -->
+      <div id="volume-wrap" class="relative flex items-center justify-end">
+        <div
+          id="volume-pop"
+          class="absolute bottom-full right-0 z-10 mb-1.5 hidden flex-col items-center gap-1 rounded-xl border border-base-300 bg-base-200 px-1.5 py-1.5 shadow-xl"
+        >
+          <div class="volume-track-wrap">
+            <input id="volume" type="range" min="0" max="100" value="60" class="volume-vertical" />
+          </div>
+          <span id="vol-label" class="text-[10px] tabular-nums text-base-content/50">60</span>
+        </div>
+        <button
+          id="btn-volume"
+          class="grid h-9 w-9 place-items-center rounded-full text-base-content/70 transition hover:bg-base-300/60 hover:text-base-content"
+          title="静音"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none" />
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- 播放列表 -->
+    <div class="mt-3 border-t border-base-300/60 pt-3">
+      <div class="flex items-center gap-2.5 px-1 pb-2">
+        <img id="pl-cover" class="h-8 w-8 shrink-0 rounded-lg object-cover shadow" alt="歌单封面" />
+        <div class="min-w-0 flex-1">
+          <p id="pl-title" class="truncate text-xs font-bold text-base-content">正在加载歌单…</p>
+          <p id="pl-count" class="text-[11px] text-base-content/40">—</p>
+        </div>
+        <span class="shrink-0 text-[10px] text-base-content/30">播放列表</span>
+      </div>
+      <ol id="playlist" class="max-h-56 divide-y divide-base-300/40 overflow-y-auto">
+        <li class="px-1 py-3 text-center text-xs text-base-content/40">正在加载歌单…</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ 歌词条：页面中间偏下，只显示歌词，跟随滚动 ═══════════ -->
+<div
+  id="lyric-bar"
+  class="fixed left-1/2 z-50 w-[min(92vw,560px)] -translate-x-1/2 px-4"
+  style="bottom: 6.5rem"
+>
+  <div id="lyric-scroll" class="lyric-scrollbar-hide max-h-24 overflow-y-auto text-center"></div>
+</div>
+
+<style>
+  /* 歌词区隐藏滚动条（滚动跟随保留） */
+  #lyric-scroll::-webkit-scrollbar {
+    display: none;
+  }
+  #lyric-scroll {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  /* 竖向音量滑条（网易云式）：旋转 90° 的横向滑条，拖动方向 下→上 */
+  .volume-track-wrap {
+    height: 72px;
+    width: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .volume-vertical {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 72px;
+    height: 4px;
+    margin: 0;
+    transform: rotate(-90deg);
+    background: transparent;
+    cursor: pointer;
+  }
+  .volume-vertical::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 999px;
+    background: linear-gradient(
+      to right,
+      var(--p),
+      var(--p) var(--fill, 80%),
+      color-mix(in srgb, var(--bc) 25%, transparent) var(--fill, 80%)
+    );
+  }
+  .volume-vertical::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    margin-top: -5px;
+    border-radius: 999px;
+    background: #fff;
+    border: 2px solid var(--p);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  }
+  .volume-vertical::-moz-range-track {
+    height: 4px;
+    border-radius: 999px;
+    background: linear-gradient(
+      to right,
+      var(--p),
+      var(--p) var(--fill, 80%),
+      color-mix(in srgb, var(--bc) 25%, transparent) var(--fill, 80%)
+    );
+  }
+  .volume-vertical::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    background: #fff;
+    border: 2px solid var(--p);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  }
+</style>
+
+<script>
+  // ══════════════════════════════════════════════════════════════
+  //  跨页面持久化设计：
+  //  - 本脚本为模块脚本，首次加载执行一次（Astro 打包后 URL 全站一致，
+  //    浏览器 module 缓存保证只执行一次）；并用 window.__frostiPlayer
+  //    单例兜底（即使被内联重执行也不会重建 audio，歌曲不中断）。
+  //  - audio 元素与所有状态保存在核心对象里，跨页面切换保留。
+  //  - 每次页面导航触发 astro:page-load → bindUI() 重新绑定新 DOM。
+  // ══════════════════════════════════════════════════════════════
+
+  interface LyricLine {
+    time: number;
+    text: string;
+  }
+  interface Track {
+    id: number;
+    name: string;
+    artist: string;
+    album: string;
+    pic: string;
+    dur: number; // ms
+    url: string;
+    lyric: LyricLine[];
+  }
+  interface ApiSong {
+    id: number;
+    name: string;
+    ar?: { name: string }[];
+    al?: { name?: string; picUrl?: string };
+    dt?: number;
+  }
+  interface PlayerConfig {
+    apiBase: string;
+    platform: string;
+    playlistId: string;
+    autoPlay: boolean;
+  }
+
+  type PlayMode = 'order' | 'shuffle' | 'loop-all' | 'loop-one';
+
+  interface PlayerCore {
+    CONFIG: PlayerConfig;
+    audio: HTMLAudioElement;
+    tracks: Track[];
+    current: number;
+    mode: PlayMode;
+    isSeeking: boolean;
+    lyricVisible: boolean;
+    lastLyricIdx: number;
+    lyricEls: HTMLElement[];
+    collapsed: boolean;
+    wasPlaying: boolean;
+    visibleCount: number;
+    failCount: number;
+    loadPlaylist(): Promise<void>;
+    loadTrack(i: number, autoplay?: boolean): Promise<void>;
+    nextTrack(): void;
+    prevTrack(): void;
+    togglePlay(): void;
+    toggleLyric(): void;
+    renderPlaylist(): void;
+    renderLyric(): void;
+    renderMini(t: Track | null, meta?: string): void;
+    setPlayIcons(playing: boolean): void;
+    setModeUI(): void;
+  }
+
+  const g = window as unknown as { __frostiPlayer?: PlayerCore };
+  const FALLBACK_PIC =
+    'data:image/svg+xml;utf8,' +
+    encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#2b3440"/><text x="32" y="40" font-size="26" text-anchor="middle">🎵</text></svg>',
+    );
+  const COLLAPSE_KEY = 'frosti-player-collapsed';
+
+  // 读取配置（隐藏 div 桥接）
+  function readConfig(): PlayerConfig {
+    const cfg: PlayerConfig = { apiBase: 'http://localhost:3000', platform: 'netease', playlistId: '', autoPlay: true };
+    const el = document.getElementById('player-config');
+    const raw = el ? el.getAttribute('data-config') : null;
+    if (raw) {
+      try {
+        return { ...cfg, ...(JSON.parse(raw) as Partial<PlayerConfig>) };
+      } catch {
+        console.error('[player] 配置解析失败:', raw);
+      }
+    }
+    return cfg;
+  }
+
+  // DOM 安全查询（页面切换瞬间元素可能不存在）
+  // 播放模式：一个按钮循环切换 顺序 → 随机 → 列表循环 → 单曲循环
+  const MODE_ICONS: Record<PlayMode, string> = {
+    order: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>',
+    shuffle: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.8-1.1 2-1.7 3.3-1.7H22"/><path d="m18 2 4 4-4 4"/><path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2"/><path d="M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8"/><path d="m18 14 4 4-4 4"/></svg>',
+    'loop-all': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>',
+    'loop-one': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/><path d="M11 9h2v6"/></svg>',
+  };
+  const MODE_TITLES: Record<PlayMode, string> = {
+    order: '顺序播放',
+    shuffle: '随机播放',
+    'loop-all': '列表循环',
+    'loop-one': '单曲循环',
+  };
+  const MODE_ORDER: PlayMode[] = ['order', 'shuffle', 'loop-all', 'loop-one'];
+
+  function q<T extends HTMLElement>(id: string): T | null {
+    return document.getElementById(id) as T | null;
+  }
+
+  // 幂等事件绑定：用 onclick/oninput/onchange 属性赋值（每次覆盖旧处理器），
+  // 即使 bindUI 因模块重执行 / HMR / astro:page-load 被多次调用，
+  // 也不会产生叠加监听（避免点播放=播放又立即暂停之类的异常）
+  const EVT_PROPS: Record<string, string> = {
+    click: 'onclick',
+    input: 'oninput',
+    change: 'onchange',
+  };
+  function bindOnce(el: HTMLElement | null, evt: string, fn: (e: Event) => void): void {
+    if (!el) return;
+    const prop = EVT_PROPS[evt] ?? 'on' + evt;
+    (el as unknown as Record<string, unknown>)[prop] = fn;
+  }
+
+  // 工具
+  function fmt(s: number): string {
+    if (!Number.isFinite(s) || s < 0) return '0:00';
+    const m = Math.floor(s / 60);
+    const r = Math.floor(s % 60);
+    return `${m}:${String(r).padStart(2, '0')}`;
+  }
+  function escapeHtml(s: string): string {
+    const map: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+    return s.replace(/[&<>"']/g, (c) => map[c]);
+  }
+
+  // ═══════════ 核心（跨页面保留：audio / 状态 / 一次性事件绑定） ═══════════
+  function createCore(): PlayerCore {
+    const CONFIG = readConfig();
+    const audio = document.createElement('audio');
+    audio.preload = 'metadata';
+    audio.volume = 0.6; // 默认音量 60%（不初始化会被浏览器设为 100% 全音量）
+    document.body.appendChild(audio);
+
+    let core!: PlayerCore;
+
+    // ---------- 网易云 API ----------
+    async function apiGet(path: string, timeoutMs = 15000): Promise<unknown> {
+      const ctrl = new AbortController();
+      const timer = window.setTimeout(() => ctrl.abort(), timeoutMs);
+      try {
+        const res = await fetch(CONFIG.apiBase + path, { signal: ctrl.signal });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      } finally {
+        window.clearTimeout(timer);
+      }
+    }
+    function getSongUrl(id: number): Promise<string> {
+      return apiGet(`/song/url/v1?id=${id}&level=standard`)
+        .then((d) => (d as { data?: { url?: string }[] }).data?.[0]?.url)
+        .then((u) => u || `https://music.163.com/song/media/outer/url?id=${id}.mp3`)
+        .catch(() => `https://music.163.com/song/media/outer/url?id=${id}.mp3`);
+    }
+    async function getLyric(id: number): Promise<LyricLine[]> {
+      const d = (await apiGet(`/lyric?id=${id}`)) as { lrc?: { lyric?: string } };
+      return parseLrc(d?.lrc?.lyric ?? '');
+    }
+
+    function extractPlaylistId(raw: string): string {
+      const m = raw.match(/(?:playlist\/|\?id=)(\d+)/) || raw.match(/(\d+)/);
+      return m ? m[1] : '';
+    }
+
+    // ---------- 加载歌单 ----------
+    function showPlaylistError(msg: string): void {
+      console.error('[player] 歌单加载失败:', msg);
+      const title = q('pl-title');
+      const count = q('pl-count');
+      const list = q('playlist');
+      const meta = q('track-meta');
+      if (title) title.textContent = '歌单加载失败';
+      if (count) count.textContent = '';
+      if (list) {
+        list.innerHTML = `<li class="px-1 py-4 text-center text-xs text-base-content/50">${escapeHtml(msg)}<br/>请确认本地 API 服务已启动（start-music-api.bat）</li>`;
+      }
+      if (meta) meta.textContent = '歌单加载失败';
+    }
+
+    async function loadPlaylist(): Promise<void> {
+      const id = extractPlaylistId(CONFIG.playlistId);
+      if (!id) {
+        showPlaylistError('歌单 ID 无效：请在 Player.astro 顶部检查 playlistId');
+        return;
+      }
+      // 网易云风控时 detail 可能返回空 tracks，做两次尝试（detail → track/all → 重试 detail）
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const det = (await apiGet(`/playlist/detail?id=${id}`)) as {
+            playlist?: { name?: string; coverImgUrl?: string; trackCount?: number; tracks?: ApiSong[] };
+          };
+          const pl = det?.playlist;
+          let songs: ApiSong[] = pl?.tracks ?? [];
+          if (!songs.length) {
+            const all = (await apiGet(`/playlist/track/all?id=${id}&limit=1000`)) as { songs?: ApiSong[] };
+            songs = all?.songs ?? [];
+          }
+          if (!songs.length) {
+            if (attempt === 0) {
+              // 可能命中风控，稍等重试一次
+              await new Promise((r) => window.setTimeout(r, 1200));
+              continue;
+            }
+            showPlaylistError('歌单为空或暂时无法读取（可能需要登录，或稍后重试）');
+            return;
+          }
+          core.tracks = songs.map((s) => ({
+            id: s.id,
+            name: s.name,
+            artist: (s.ar ?? []).map((a) => a.name).join(' / '),
+            album: s.al?.name ?? '',
+            pic: s.al?.picUrl ?? '',
+            dur: s.dt ?? 0,
+            url: '',
+            lyric: [],
+          }));
+          core.current = -1;
+          core.lastLyricIdx = -1;
+          // 歌单信息
+          const title = q('pl-title');
+          const count = q('pl-count');
+          const cover = q<HTMLImageElement>('pl-cover');
+          if (title) title.textContent = pl?.name || '播放列表';
+          if (count) count.textContent = `${core.tracks.length} 首`;
+          if (cover) cover.src = pl?.coverImgUrl || FALLBACK_PIC;
+          bindUI(core); // 刷新列表
+          loadTrack(0, CONFIG.autoPlay);
+          return;
+        } catch (err) {
+          if (attempt === 0) {
+            await new Promise((r) => window.setTimeout(r, 1200));
+            continue;
+          }
+          showPlaylistError(`歌单加载失败：${err instanceof Error ? err.message : String(err)}`);
+          return;
+        }
+      }
+    }
+
+    // ---------- LRC 解析 ----------
+    function parseLrc(lrc: string): LyricLine[] {
+      const lines: LyricLine[] = [];
+      let offset = 0;
+      const om = lrc.match(/\[offset:\s*([+-]?\d+)\s*\]/i);
+      if (om) offset = Number(om[1]);
+      const re = /\[(\d{1,2}):(\d{1,2})(?:[.:](\d{1,3}))?\]/g;
+      for (const raw of lrc.split(/\r?\n/)) {
+        const times: number[] = [];
+        let m: RegExpExecArray | null;
+        re.lastIndex = 0;
+        while ((m = re.exec(raw)) !== null) {
+          const min = Number(m[1]);
+          const sec = Number(m[2]);
+          const frac = m[3] ? Number(m[3].padEnd(3, '0')) : 0;
+          times.push(min * 60000 + sec * 1000 + frac - offset);
+        }
+        const text = raw.replace(re, '').replace(/\[[^\]]*\]/g, '').trim();
+        if (!text || !times.length) continue;
+        for (const t of times) lines.push({ time: t, text });
+      }
+      lines.sort((a, b) => a.time - b.time);
+      return lines;
+    }
+
+    // ---------- 播放控制 ----------
+    async function loadTrack(i: number, autoplay = true): Promise<void> {
+      if (i < 0 || i >= core.tracks.length) return;
+      core.current = i;
+      const t = core.tracks[i];
+      core.lastLyricIdx = -1;
+      renderPlaylist();
+      renderLyric();
+      renderMini(t, '加载中…');
+      try {
+        if (!t.url) t.url = await getSongUrl(t.id);
+        audio.src = t.url;
+        renderMini(t, '就绪');
+        if (autoplay) {
+          audio.play().catch(() => renderMini(t, '点击播放'));
+        }
+      } catch {
+        // 拿不到播放地址也视为无法播放，自动跳下一首
+        const t = core.current >= 0 ? core.tracks[core.current] : null;
+        if (t) renderMini(t, '无法播放，自动跳过');
+        core.failCount += 1;
+        if (core.failCount >= 10) {
+          setPlayIcons(false);
+          return;
+        }
+        nextTrack();
+      }
+      if (!t.lyric.length) {
+        getLyric(t.id)
+          .then((lrc) => {
+            t.lyric = lrc;
+            if (core.current === i) renderLyric();
+          })
+          .catch(() => {
+            if (core.current === i) renderLyric();
+          });
+      }
+    }
+
+    function nextTrack(): void {
+      if (!core.tracks.length) return;
+      let i: number;
+      if (core.mode === 'shuffle' && core.tracks.length > 1) {
+        do {
+          i = Math.floor(Math.random() * core.tracks.length);
+        } while (i === core.current);
+      } else {
+        i = (core.current + 1) % core.tracks.length;
+      }
+      loadTrack(i, true);
+    }
+
+    function prevTrack(): void {
+      if (!core.tracks.length) return;
+      if (audio.currentTime > 3) {
+        audio.currentTime = 0;
+        return;
+      }
+      loadTrack(core.current <= 0 ? core.tracks.length - 1 : core.current - 1);
+    }
+
+    function togglePlay(): void {
+      if (!core.tracks.length) return;
+      if (audio.paused) audio.play().catch(() => {});
+      else audio.pause();
+    }
+
+    // ---------- 歌词渲染与同步（歌词条只显示歌词） ----------
+    function renderLyric(): void {
+      const scroll = q('lyric-scroll');
+      if (!scroll) return;
+      scroll.innerHTML = '';
+      scroll.scrollTop = 0;
+      core.lyricEls = [];
+      core.lastLyricIdx = -1;
+      const t = core.current >= 0 ? core.tracks[core.current] : null;
+      const lrc = t?.lyric ?? [];
+      if (!t || !lrc.length) {
+        scroll.innerHTML = '<p class="py-4 text-sm text-base-content/40">暂无歌词</p>';
+        return;
+      }
+      for (const line of lrc) {
+        const d = document.createElement('div');
+        d.className = 'rounded px-2 py-1 text-sm text-base-content/70 transition-colors';
+        d.textContent = line.text;
+        d.addEventListener('click', () => {
+          audio.currentTime = line.time / 1000;
+        });
+        scroll.appendChild(d);
+        core.lyricEls.push(d);
+      }
+    }
+
+    function syncLyric(): void {
+      const scroll = q('lyric-scroll');
+      const t = core.current >= 0 ? core.tracks[core.current] : null;
+      if (!scroll || !t || !core.lyricEls.length) return;
+      const ms = audio.currentTime * 1000;
+      // 二分查找最后一条 time <= ms 的歌词行（歌词较长时比线性遍历快）
+      let lo = 0;
+      let hi = t.lyric.length - 1;
+      let idx = -1;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (t.lyric[mid].time <= ms) {
+          idx = mid;
+          lo = mid + 1;
+        } else {
+          hi = mid - 1;
+        }
+      }
+      if (idx === core.lastLyricIdx) return;
+      core.lastLyricIdx = idx;
+      core.lyricEls.forEach((el, i) => {
+        const active = i === idx;
+        el.classList.toggle('text-primary', active);
+        el.classList.toggle('font-semibold', active);
+        el.classList.toggle('text-base-content/70', !active);
+      });
+      if (idx >= 0 && core.lyricVisible) {
+        const el = core.lyricEls[idx];
+        const rect = el.getBoundingClientRect();
+        const pr = scroll.getBoundingClientRect();
+        const target = scroll.scrollTop + (rect.top - pr.top) - pr.height / 2 + rect.height / 2;
+        scroll.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+      }
+    }
+
+    function toggleLyric(): void {
+      core.lyricVisible = !core.lyricVisible;
+      const bar = q('lyric-bar');
+      if (bar) bar.classList.toggle('hidden', !core.lyricVisible);
+      const btn = q('btn-lyric');
+      if (btn) {
+        btn.classList.toggle('text-primary', core.lyricVisible);
+        btn.classList.toggle('border-primary', core.lyricVisible);
+        btn.title = core.lyricVisible ? '隐藏歌词 (L)' : '显示歌词 (L)';
+      }
+    }
+
+    // ---------- 渲染：播放列表 / 迷你信息 ----------
+    function renderPlaylist(): void {
+      const list = q('playlist');
+      if (!list) return;
+      if (!core.tracks.length) {
+        list.innerHTML = '<li class="px-1 py-3 text-center text-xs text-base-content/40">暂无歌曲</li>';
+        return;
+      }
+      // 分页渲染：只渲染前 visibleCount 行，图片懒加载，行事件用委托（bindUI 里绑定）
+      const limit = Math.min(core.visibleCount, core.tracks.length);
+      const rows: string[] = [];
+      for (let i = 0; i < limit; i++) {
+        const t = core.tracks[i];
+        const active = i === core.current;
+        rows.push(
+          `<li data-i="${i}" class="flex cursor-pointer items-center gap-2 px-1 py-2 transition ${active ? 'bg-primary/10' : 'hover:bg-base-300/40'}">
+            <img loading="lazy" decoding="async" src="${t.pic || FALLBACK_PIC}" alt="" class="h-8 w-8 shrink-0 rounded-md object-cover" />
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-xs ${active ? 'font-semibold text-primary' : 'text-base-content'}">${active ? '▶ ' : ''}${escapeHtml(t.name)}</p>
+              <p class="truncate text-[11px] text-base-content/50">${escapeHtml(t.artist)}</p>
+            </div>
+            <span class="shrink-0 text-[11px] tabular-nums text-base-content/40">${t.dur ? fmt(t.dur / 1000) : '—'}</span>
+            <button class="del px-1 text-base-content/30 transition hover:text-error" data-i="${i}" title="移除">✕</button>
+          </li>`,
+        );
+      }
+      if (core.tracks.length > limit) {
+        rows.push(
+          `<li class="px-1 py-2 text-center text-[11px] text-base-content/30">↓ 滚动加载更多（共 ${core.tracks.length} 首）</li>`,
+        );
+      }
+      list.innerHTML = rows.join('');
+    }
+
+    function renderMini(t: Track | null, meta?: string): void {
+      const title = q('mini-title');
+      const artist = q('mini-artist');
+      const cover = q<HTMLImageElement>('mini-cover');
+      const full = q('track-title');
+      const fullArtist = q('track-artist');
+      const fullPic = q<HTMLImageElement>('track-pic');
+      const metaEl = q('track-meta');
+      if (title) title.textContent = t ? t.name : '未播放';
+      if (artist) artist.textContent = t ? t.artist + (t.album ? ` · ${t.album}` : '') : '填入歌单 ID 开始播放';
+      if (cover) cover.src = t ? t.pic || FALLBACK_PIC : FALLBACK_PIC;
+      if (full) full.textContent = t ? t.name : '未播放';
+      if (fullArtist) fullArtist.textContent = t ? t.artist + (t.album ? ` · ${t.album}` : '') : '—';
+      if (fullPic) fullPic.src = t ? t.pic || FALLBACK_PIC : FALLBACK_PIC;
+      if (metaEl && meta) metaEl.textContent = meta;
+    }
+
+    // ---------- 一次性事件绑定（audio 跨页面保留，处理器内实时查询 DOM） ----------
+    audio.addEventListener('loadedmetadata', () => {
+      if (core.current >= 0) {
+        const dur = q('time-dur');
+        if (dur) dur.textContent = fmt(audio.duration);
+        renderPlaylist();
+      }
+    });
+    audio.addEventListener('timeupdate', () => {
+      if (!core.isSeeking) {
+        const s = q<HTMLInputElement>('seek');
+        if (s) s.value = audio.duration ? String((audio.currentTime / audio.duration) * 1000) : '0';
+      }
+      const cur = q('time-cur');
+      if (cur) cur.textContent = fmt(audio.currentTime);
+      syncLyric();
+    });
+    audio.addEventListener('play', () => {
+      core.failCount = 0; // 播放成功，重置连续失败计数
+      setPlayIcons(true);
+      const t = core.current >= 0 ? core.tracks[core.current] : null;
+      if (t) renderMini(t, '正在播放');
+    });
+    audio.addEventListener('pause', () => {
+      setPlayIcons(false);
+      const t = core.current >= 0 ? core.tracks[core.current] : null;
+      if (t) renderMini(t, '已暂停');
+    });
+    audio.addEventListener('ended', () => {
+      if (core.mode === 'loop-one') {
+        audio.currentTime = 0;
+        audio.play();
+      } else if (core.mode === 'loop-all' || core.mode === 'shuffle' || core.current < core.tracks.length - 1) {
+        nextTrack(); // 自动切到下一首并播放
+      } else {
+        setPlayIcons(false);
+      }
+    });
+    // 遇到无法播放的歌曲自动跳下一首（连续失败过多则停止，避免死循环）
+    function skipBroken(): void {
+      core.failCount += 1;
+      if (core.failCount >= 10) {
+        console.warn('[player] 连续多首无法播放，已停止');
+        setPlayIcons(false);
+        return;
+      }
+      nextTrack();
+    }
+    audio.addEventListener('error', () => {
+      const t = core.current >= 0 ? core.tracks[core.current] : null;
+      if (t) renderMini(t, '无法播放，自动跳过');
+      skipBroken();
+    });
+
+    // 切换页面（View Transitions）前记录播放状态，切换后自动恢复，
+    // 避免 DOM 替换导致正在播放的歌曲被暂停
+    document.addEventListener('astro:before-swap', () => {
+      core.wasPlaying = !audio.paused;
+    });
+
+    // 键盘快捷键（document 级，绑定一次，跨页面存活）
+    document.addEventListener('keydown', (e) => {
+      const target = e.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (target instanceof HTMLInputElement && target.type !== 'range') return;
+      if (target instanceof HTMLButtonElement && e.code === 'Space') return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        togglePlay();
+      } else if (e.code === 'ArrowRight') {
+        e.preventDefault();
+        audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 5);
+      } else if (e.code === 'ArrowLeft') {
+        e.preventDefault();
+        audio.currentTime = Math.max(0, audio.currentTime - 5);
+      } else if (e.code === 'ArrowUp') {
+        e.preventDefault();
+        const v = q<HTMLInputElement>('volume');
+        if (v) {
+          v.value = String(Math.min(100, Number(v.value) + 5));
+          v.dispatchEvent(new Event('input'));
+          showVolumeRow();
+        }
+      } else if (e.code === 'ArrowDown') {
+        e.preventDefault();
+        const v = q<HTMLInputElement>('volume');
+        if (v) {
+          v.value = String(Math.max(0, Number(v.value) - 5));
+          v.dispatchEvent(new Event('input'));
+          showVolumeRow();
+        }
+      } else if (e.key === 'n' || e.key === 'N') {
+        nextTrack();
+      } else if (e.key === 'p' || e.key === 'P') {
+        prevTrack();
+      } else if (e.key === 'l' || e.key === 'L') {
+        toggleLyric();
+      }
+    });
+
+    function setPlayIcons(playing: boolean): void {
+      const PLAY =
+        '<polygon points="7 4 20 12 7 20 7 4" fill="currentColor"/>';
+      const PAUSE =
+        '<rect x="6" y="4" width="4" height="16" rx="1.2" fill="currentColor"/><rect x="14" y="4" width="4" height="16" rx="1.2" fill="currentColor"/>';
+      const main = q('play-icon');
+      const mini = q('mini-play-icon');
+      if (main) main.innerHTML = playing ? PAUSE : PLAY;
+      if (mini) mini.innerHTML = playing ? PAUSE : PLAY;
+    }
+
+    function setModeUI(): void {
+      const btn = q('btn-mode');
+      if (btn) {
+        btn.title = MODE_TITLES[core.mode];
+        btn.classList.toggle('text-primary', core.mode !== 'order');
+        const icon = q('mode-icon');
+        if (icon) icon.innerHTML = MODE_ICONS[core.mode];
+      }
+    }
+
+    core = {
+      CONFIG,
+      audio,
+      tracks: [],
+      current: -1,
+      mode: 'order',
+      isSeeking: false,
+      lyricVisible: true,
+      lastLyricIdx: -1,
+      lyricEls: [],
+      collapsed: localStorage.getItem(COLLAPSE_KEY) !== '0', // 默认折叠（仅当明确展开过才展开）
+      wasPlaying: false,
+      visibleCount: 40, // 播放列表分页渲染：每批渲染行数，滚动到底部追加
+      failCount: 0, // 连续播放失败计数（>10 停止自动跳歌）
+      loadPlaylist,
+      loadTrack,
+      nextTrack,
+      prevTrack,
+      togglePlay,
+      toggleLyric,
+      renderPlaylist,
+      renderLyric,
+      renderMini,
+      setPlayIcons,
+      setModeUI,
+    };
+
+    // 创建后立即自动加载配置中的歌单
+    loadPlaylist();
+
+    return core;
+  }
+
+  // ═══════════ 每次页面加载后：绑定新 DOM ═══════════
+  // 展开音量条（键盘调音量时也会调用）
+  function showVolumeRow(): void {
+    const pop = q('volume-pop');
+    if (pop) pop.classList.remove('hidden');
+  }
+
+  function bindUI(core: PlayerCore): void {
+    // 重建控件元素：清除一切旧监听（dev 模式 HMR 会保留旧 DOM 与旧
+    // addEventListener 监听，与 onclick 新绑定叠加导致"点一次触发两次"，
+    // 例如循环按钮一次点击直接跳两档变成单曲循环）
+    const CONTROL_IDS = [
+      'player-toggle',
+      'mini-play',
+      'btn-play',
+      'btn-next',
+      'btn-prev',
+      'btn-mode',
+      'btn-volume',
+      'btn-lyric',
+      'seek',
+      'volume',
+      'volume-wrap',
+    ];
+    for (const id of CONTROL_IDS) {
+      const el = document.getElementById(id);
+      if (el) el.replaceWith(el.cloneNode(true));
+    }
+
+    // audio 重新挂载到当前文档
+    if (!core.audio.isConnected) document.body.appendChild(core.audio);
+    // 页面切换导致播放中断时自动恢复
+    if (core.wasPlaying && core.audio.paused && core.audio.currentSrc) {
+      core.audio.play().catch(() => {});
+    }
+
+    // 折叠状态
+    const body = q('player-body');
+    const icon = q('collapse-icon');
+    if (body) body.classList.toggle('hidden', core.collapsed);
+    if (icon) icon.textContent = core.collapsed ? '▸' : '▾';
+
+    // 歌词条初始可见性
+    const bar = q('lyric-bar');
+    if (bar) bar.classList.toggle('hidden', !core.lyricVisible);
+
+    // 渲染当前状态
+    core.renderPlaylist();
+    core.renderLyric();
+    const t = core.current >= 0 ? core.tracks[core.current] : null;
+    if (t) core.renderMini(t);
+    core.setPlayIcons(!core.audio.paused);
+    const vol = q<HTMLInputElement>('volume');
+    if (vol) {
+      vol.value = String(Math.round((core.audio.volume || 0.6) * 100));
+      vol.style.setProperty('--fill', vol.value + '%');
+      const vl = q('vol-label');
+      if (vl) vl.textContent = vol.value;
+    }
+    const seek = q<HTMLInputElement>('seek');
+    if (seek) {
+      seek.disabled = core.current < 0;
+      if (core.audio.duration) seek.value = String((core.audio.currentTime / core.audio.duration) * 1000);
+    }
+    const dur = q('time-dur');
+    if (dur && core.audio.duration) dur.textContent = fmt(core.audio.duration);
+    const cur = q('time-cur');
+    if (cur) cur.textContent = fmt(core.audio.currentTime);
+    core.setModeUI();
+    const lyricBtn = q('btn-lyric');
+    if (lyricBtn) {
+      lyricBtn.classList.toggle('text-primary', core.lyricVisible);
+      lyricBtn.classList.toggle('border-primary', core.lyricVisible);
+    }
+    const pl = q('pl-title');
+    const plc = q('pl-count');
+    const plc2 = q<HTMLImageElement>('pl-cover');
+    if (core.tracks.length && core.current >= 0) {
+      // 歌单信息由加载时设置；此处只确保列表头显示
+      if (pl && pl.textContent === '正在加载歌单…') pl.textContent = '播放列表';
+      if (plc) plc.textContent = `${core.tracks.length} 首`;
+    }
+    if (plc2 && plc2.src === '') plc2.src = FALLBACK_PIC;
+
+    // ---------- 控件事件绑定（bindOnce 幂等，防止重复绑定） ----------
+    const toggle = q('player-toggle');
+    bindOnce(toggle, 'click', () => {
+      core.collapsed = !core.collapsed;
+      localStorage.setItem(COLLAPSE_KEY, core.collapsed ? '1' : '0');
+      const b = q('player-body');
+      const ic = q('collapse-icon');
+      if (b) b.classList.toggle('hidden', core.collapsed);
+      if (ic) ic.textContent = core.collapsed ? '▸' : '▾';
+    });
+    const miniPlay = q('mini-play');
+    bindOnce(miniPlay, 'click', () => {
+      core.togglePlay();
+    });
+    const play = q('btn-play');
+    bindOnce(play, 'click', core.togglePlay);
+    const next = q('btn-next');
+    bindOnce(next, 'click', () => {
+      core.nextTrack();
+    });
+    const prev = q('btn-prev');
+    bindOnce(prev, 'click', () => {
+      core.prevTrack();
+    });
+    // 播放模式按钮：点击循环切换 顺序 → 随机 → 列表循环 → 单曲循环
+    const modeBtn = q('btn-mode');
+    bindOnce(modeBtn, 'click', () => {
+      const i = MODE_ORDER.indexOf(core.mode);
+      core.mode = MODE_ORDER[(i + 1) % MODE_ORDER.length];
+      core.setModeUI();
+    });
+    // 音量按钮：点击切换静音（网易云式，悬停弹竖条调音量）
+    const volBtn = q('btn-volume');
+    bindOnce(volBtn, 'click', () => {
+      core.audio.muted = !core.audio.muted;
+      volBtn!.classList.toggle('text-primary', core.audio.muted);
+      volBtn!.title = core.audio.muted ? '取消静音' : '静音';
+    });
+    // 悬停音量按钮附近时弹出竖向滑条
+    const volWrap = q('volume-wrap');
+    if (volWrap) {
+      let hideTimer: number | null = null;
+      volWrap.addEventListener('mouseenter', () => {
+        if (hideTimer !== null) {
+          window.clearTimeout(hideTimer);
+          hideTimer = null;
+        }
+        const pop = q('volume-pop');
+        if (pop) pop.classList.remove('hidden');
+      });
+      volWrap.addEventListener('mouseleave', () => {
+        // 延迟稍长：给用户足够时间从按钮移动到滑条（穿过中间空隙）
+        hideTimer = window.setTimeout(() => {
+          const pop = q('volume-pop');
+          if (pop) pop.classList.add('hidden');
+        }, 600);
+      });
+    }
+    const lyric = q('btn-lyric');
+    bindOnce(lyric, 'click', core.toggleLyric);
+    const seekEl = q<HTMLInputElement>('seek');
+    if (seekEl) {
+      bindOnce(seekEl, 'input', () => {
+        core.isSeeking = true;
+        const cur = q('time-cur');
+        if (cur && core.audio.duration) cur.textContent = fmt(core.audio.duration * (Number(seekEl.value) / 1000));
+      });
+      bindOnce(seekEl, 'change', () => {
+        if (core.audio.duration) core.audio.currentTime = core.audio.duration * (Number(seekEl.value) / 1000);
+        core.isSeeking = false;
+      });
+    }
+    const volEl = q<HTMLInputElement>('volume');
+    if (volEl) {
+      bindOnce(volEl, 'input', () => {
+        core.audio.volume = Number(volEl.value) / 100;
+        core.audio.muted = volEl.value === '0';
+        volEl.style.setProperty('--fill', volEl.value + '%');
+        const vl = q('vol-label');
+        if (vl) vl.textContent = volEl.value;
+      });
+    }
+
+    // 播放列表事件委托（分页渲染，避免为每行创建监听器）
+    const listEl = q('playlist');
+    if (listEl) {
+      bindOnce(listEl, 'click', (e) => {
+        if (!(e.target instanceof Element)) return;
+        const btn = e.target.closest('.del') as HTMLElement | null;
+        const li = e.target.closest('li[data-i]') as HTMLElement | null;
+        if (!li) return;
+        const i = Number(li.dataset.i);
+        if (btn) {
+          core.tracks.splice(i, 1);
+          if (i < core.current) core.current -= 1;
+          else if (i === core.current) {
+            if (core.tracks.length) core.loadTrack(Math.min(i, core.tracks.length - 1));
+            else {
+              core.current = -1;
+              core.audio.pause();
+              core.audio.removeAttribute('src');
+              core.renderPlaylist();
+              core.renderLyric();
+            }
+          }
+          core.renderPlaylist();
+        } else {
+          core.loadTrack(i);
+        }
+      });
+      bindOnce(listEl, 'scroll', () => {
+        if (listEl.scrollTop + listEl.clientHeight >= listEl.scrollHeight - 100) {
+          if (core.visibleCount < core.tracks.length) {
+            core.visibleCount += 40;
+            core.renderPlaylist();
+          }
+        }
+      });
+    }
+  }
+
+  // ═══════════ 初始化 ═══════════
+  if (!g.__frostiPlayer) {
+    g.__frostiPlayer = createCore();
+    // 初始页面与每次导航后都会触发 astro:page-load
+    document.addEventListener('astro:page-load', () => {
+      if (g.__frostiPlayer) bindUI(g.__frostiPlayer);
+    });
+    // 初始页面立即绑定一次（幂等，即使 page-load 再触发也无害）
+    bindUI(g.__frostiPlayer);
+  } else {
+    bindUI(g.__frostiPlayer);
+  }
+</script>

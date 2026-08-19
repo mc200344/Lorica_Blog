@@ -1,4 +1,5 @@
 ---
+import Player from "@components/Player.astro";
 import ProfileBar from "./sidebar/ProfileBar.astro";
 import SearchBar from "./sidebar/SearchBar.astro";
 import TOCBar from "./sidebar/TOCBar.astro";
@@ -17,6 +18,10 @@ interface Props {
 const { headings = [], showTOC = true } = Astro.props as Props;
 ---
 
+<!-- 全局音乐播放器（可折叠小组件）：导航栏下面、搜索框上面 -->
+<div class="relative mb-4">
+  <Player />
+</div>
 <div class="relative mb-4">
   <ProfileBar />
 </div>
