@@ -6,48 +6,43 @@ import RepositoryCard from "@/components/mdx/RepositoryCard.astro";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 ---
 
-<BaseLayout title="Projects">
+<BaseLayout title="项目">
   <MainCard
-    title="Projects"
+    title="你好"
     description="A showcase of my open-source projects and contributions on GitHub."
-    textOverlay="PROJECTS"
+    textOverlay="项目"
     infoIcon="lucide:code-2"
   >
     <!-- Featured Projects -->
     <section class="py-4">
       <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
         <Icon name="lucide:star" class="w-6 h-6 text-primary" />
-        <span>Featured Projects</span>
+        <span>精选</span>
       </h2>
 
-      <GitHubStats username="EveSunMaple" repositoryName="Frosti" />
+      <GitHubStats username="mc200344" repositoryName="Lorica_Blog" />
     </section>
 
     <!-- My Repositories -->
     <section class="py-4">
       <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
         <Icon name="lucide:folder" class="w-6 h-6 text-primary" />
-        <span>My Repositories</span>
+        <span>我的仓库</span>
       </h2>
-
+    <!-- 添加重复即可 -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <RepositoryCard repo="EveSunMaple/Frosti" isPinned={true} />
-        <RepositoryCard repo="EveSunMaple/SaroProck" isPinned={true} />
-        <RepositoryCard repo="EveSunMaple/astion-static" />
-        <RepositoryCard repo="EveSunMaple/astro-update-theme" />
-        <RepositoryCard repo="EveSunMaple/Word-testing-application" />
-        <RepositoryCard repo="EveSunMaple/Smooth-Snake-Game" />
+        <RepositoryCard repo="mc200344/Lorica_Blog" isPinned={true} />
       </div>
 
       <div class="flex justify-center mt-10">
         <a
-          href="https://github.com/EveSunMaple?tab=repositories"
+          href="https://github.com/mc200344?tab=repositories"
           target="_blank"
           rel="noopener noreferrer"
           class="btn btn-outline gap-2"
         >
           <Icon name="lucide:github" class="w-5 h-5" />
-          <span>View More on GitHub</span>
+          <span>在GitHub查看更多</span>
         </a>
       </div>
     </section>
@@ -56,7 +51,7 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
     <section class="py-4">
       <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
         <Icon name="lucide:git-pull-request" class="w-6 h-6 text-primary" />
-        <span>Open Source Contributions</span>
+        <span>开源共享</span>
       </h2>
 
       <div class="card bg-base-200 p-6">

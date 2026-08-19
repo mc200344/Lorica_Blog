@@ -5,31 +5,31 @@ import GitHubStats from "@/components/mdx/GitHubStats.astro";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 ---
 
-<BaseLayout title="About">
+<BaseLayout title="关于我">
   <MainCard
-    title="About SunMaple"
-    description="Developer, open-source enthusiast, and creator of the Frosti blog theme."
-    textOverlay="ABOUT"
+    title="关于我"
+    description="以Astro为框架Frosti为主题的个人博客."
+    textOverlay="你好"
     infoIcon="lucide:user"
   >
     <div class="space-y-10 mb-8">
-      <!-- Profile Section -->
+      <!-- 个人资料 -->
       <section class="flex flex-col md:flex-row gap-8 items-center md:items-start">
         <div class="avatar">
           <div
             class="w-32 h-32 md:w-40 md:h-40 rounded-xl ring ring-primary ring-offset-base-100 ring-offset-2 overflow-hidden"
           >
-            <img src="https://github.com/EveSunMaple.png" alt="SunMaple" width="160" height="160" loading="eager" />
+            <img src="https://github.com/mc200344.png" alt="Lorica" width="160" height="160" loading="eager" />
           </div>
         </div>
 
         <div class="flex-1 text-center md:text-left">
-          <h2 class="text-3xl md:text-4xl font-bold mb-2">SunMaple</h2>
-          <p class="text-xl text-base-content/80 mb-4">Developer & Open-Source Enthusiast</p>
+          <h2 class="text-3xl md:text-4xl font-bold mb-2">Lorica</h2>
+          <p class="text-xl text-base-content/80 mb-4">嵌入式&前端web</p>
 
           <div class="flex flex-wrap gap-3 justify-center md:justify-start mb-6">
             <a
-              href="https://github.com/EveSunMaple"
+              href="https://github.com/mc200344"
               target="_blank"
               rel="noopener noreferrer"
               class="btn btn-sm btn-outline gap-2"
@@ -38,7 +38,7 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
               <span>GitHub</span>
             </a>
             <a
-              href="https://twitter.com/EveSunMaple"
+              href="/"
               target="_blank"
               rel="noopener noreferrer"
               class="btn btn-sm btn-outline gap-2"
@@ -46,17 +46,14 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
               <Icon name="lucide:twitter" class="w-4 h-4" />
               <span>Twitter</span>
             </a>
-            <a href="mailto:evesunmaple@outlook.com" class="btn btn-sm btn-outline gap-2">
+            <a href="3147113179@qq.com" class="btn btn-sm btn-outline gap-2">
               <Icon name="lucide:mail" class="w-4 h-4" />
               <span>Email</span>
             </a>
           </div>
 
           <p class="text-base-content/80">
-            Hello! I'm SunMaple, a passionate developer focused on creating elegant, responsive, and efficient web
-            applications. I'm the creator of the Frosti blog theme, a modern Astro-based theme for content creators. I
-            love contributing to open-source projects and building tools that help others create beautiful digital
-            experiences.
+            你好，欢迎来到我的博客，我的博客是以Astro为框架Frosti为主题的个人博客.
           </p>
         </div>
       </section>
@@ -65,17 +62,17 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
       <section>
         <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
           <Icon name="lucide:github" class="w-6 h-6 text-primary" />
-          <span>GitHub Statistics</span>
+          <span>GitHub统计</span>
         </h2>
 
-        <GitHubStats username="EveSunMaple" />
+        <GitHubStats username="mc200344" />
       </section>
 
       <!-- Tech Stack -->
       <section>
         <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
           <Icon name="lucide:code-2" class="w-6 h-6 text-primary" />
-          <span>Tech Stack</span>
+          <span>技术栈</span>
         </h2>
 
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -109,7 +106,7 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
       <section>
         <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
           <Icon name="lucide:activity" class="w-6 h-6 text-primary" />
-          <span>Recent Activity</span>
+          <span>最近活动</span>
         </h2>
 
         <div class="bg-base-200 rounded-xl p-6 overflow-x-auto">
@@ -117,24 +114,24 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
             {
               [
                 {
-                  date: "January 2024",
-                  title: "Open Source Contributions",
-                  desc: "Contributed to several open source projects, focusing on performance optimizations.",
+                  date: "时间",
+                  title: "标题",
+                  desc: "简介.",
                 },
                 {
-                  date: "March 2024",
-                  title: "Initiated Frosti Project",
-                  desc: "Started development of the Frosti blog theme for Astro, focusing on modern design principles.",
+                  date: "时间",
+                  title: "标题",
+                  desc: "简介.",
                 },
                 {
-                  date: "July 2024",
-                  title: "Released Frosti v2",
-                  desc: "Published version 2 with improved responsive design and extended plugin support.",
+                  date: "时间",
+                  title: "标题",
+                  desc: "简介.",
                 },
                 {
-                  date: "March 2025",
-                  title: "Released Frosti v3",
-                  desc: "Launched version 3 of the Frosti blog theme with enhanced performance and new customization options.",
+                  date: "时间",
+                  title: "标题",
+                  desc: "简介.",
                 },
               ].map((item, i) => (
                 <div class="relative flex gap-4 pb-2 md:pb-0 md:min-w-[250px]">
