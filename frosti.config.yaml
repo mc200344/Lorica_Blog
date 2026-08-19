@@ -64,7 +64,7 @@ site:
 # 用户的个人信息
 user:
   name: Lorica # 用户名
-  site: "https://github.com/mc200344.png" # 用户的网站链接
+  site: "https://lorica01.netlify.app/" # 用户的网站链接
   avatar: "https://github.com/mc200344.png" # 用户头像路径
   sidebar: # 侧边栏配置
     social:
