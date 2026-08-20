@@ -17,6 +17,161 @@
 html {
   @apply scroll-smooth;
 }
+//大背景//
+#global-hero {
+  --hero-progress: 0;
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  min-height: clamp(430px, 72vh, 760px);
+  place-items: center;
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, oklch(0.12 0.08 245 / 0.2), oklch(0.18 0.1 245 / 0.58)),
+    url("/image/image3.webp") center / cover;
+  transform: translateY(calc(var(--hero-progress) * -3rem)) scale(calc(1 - var(--hero-progress) * 0.035));
+  transform-origin: center top;
+  transition: transform 120ms linear;
+}
+
+#global-hero::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  content: "";
+  background: linear-gradient(115deg, oklch(0.08 0.08 245 / 0.4), transparent 62%);
+}
+
+.global-hero-copy {
+  position: relative;
+  z-index: 1;
+  padding: 2rem;
+  color: white;
+  text-align: center;
+  text-shadow: 0 3px 20px oklch(0 0 0 / 0.45);
+  opacity: calc(1 - var(--hero-progress) * 0.9);
+  transform: translateY(calc(var(--hero-progress) * -2rem));
+  transition: opacity 120ms linear, transform 120ms linear;
+}
+
+.global-hero-kicker {
+  margin-bottom: 0.8rem;
+  color: oklch(1 0 0 / 0.8);
+  font-size: clamp(0.8rem, 1.5vw, 1rem);
+  letter-spacing: 0.18em;
+  animation: global-subtitle-in 900ms 120ms both;
+}
+
+.global-hero-copy h1 {
+  font-size: clamp(2.4rem, 7vw, 6rem);
+  font-weight: 800;
+  line-height: 1.05;
+}
+
+.global-hero-subtitle {
+  display: flex;
+  justify-content: center;
+  min-height: 1.5em;
+  margin-top: 1.2rem;
+  color: oklch(1 0 0 / 0.86);
+  font-size: clamp(0.95rem, 2vw, 1.35rem);
+  animation: global-subtitle-in 1100ms 380ms both;
+}
+
+.global-subtitle-char {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(0.7em);
+}
+
+.global-subtitle-char-entering {
+  animation: subtitle-char-enter 500ms cubic-bezier(0.22, 1, 0.36, 1) var(--char-delay) both;
+}
+
+.global-subtitle-char-leaving {
+  animation: subtitle-char-leave 380ms ease-in var(--char-delay) both;
+}
+
+.global-ui-area {
+  position: relative;
+  z-index: 3;
+  margin-top: 0;
+  background: white;
+}
+
+.global-ui-wave {
+  position: absolute;
+  right: 0;
+  top: clamp(-180px, -14vw, -110px);
+  left: 0;
+  z-index: 0;
+  width: 100%;
+  height: clamp(110px, 14vw, 180px);
+  fill: white;
+  transform: translateY(calc(var(--hero-progress) * 2.5rem)) scaleX(calc(1 + var(--hero-progress) * 0.08));
+  transform-origin: center top;
+  transition: transform 120ms linear;
+}
+
+.global-ui-area > .max-w-6xl {
+  position: relative;
+  z-index: 1;
+  padding-top: clamp(70px, 10vw, 140px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #global-hero,
+  .global-hero-copy,
+  .global-ui-wave {
+    transform: none;
+    transition: none;
+  }
+
+  .global-hero-subtitle {
+    display: block;
+  }
+
+  .global-subtitle-char {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+}
+
+@keyframes subtitle-char-enter {
+  from {
+    opacity: 0;
+    transform: translateY(0.7em);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes subtitle-char-leave {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-0.7em);
+  }
+}
+
+@keyframes global-subtitle-in {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
 .sakura-fall {
   position: fixed;

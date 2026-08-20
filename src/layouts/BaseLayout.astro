@@ -96,9 +96,80 @@ const jsonLd =
   </head>
 
   <body class="flex flex-col min-h-screen" {...isIndexed ? { "data-pagefind-body": true } : {}}>
-    <div class="sakura-fall" aria-hidden="true">
+    <section id="global-hero" aria-labelledby="global-hero-title">
+      <div class="global-hero-copy">
+        <p class="global-hero-kicker">{SITE_TAB}</p>
+        <h1 id="global-hero-title">Loricaの小屋</h1>
+        <p id="global-hero-subtitle" class="global-hero-subtitle" aria-live="polite">{SITE_DESCRIPTION}</p>
+      </div>
+    </section>
+
+    <script is:inline>
+      const subtitle = document.getElementById("global-hero-subtitle");
+      const subtitles = [
+        "以文字、代码和音乐，收藏每一个值得回看的瞬间",
+        "在持续学习里，把灵感变成真实的作品",
+        "记录技术探索，也记录生活里的微小热爱",
+        "愿每一次分享，都能带来一点新的启发",
+      ];
+      let subtitleIndex = 0;
+      let subtitleChanging = false;
+      const charDelay = 32;
+      const animateSubtitleIn = (text) => {
+        if (!subtitle) return;
+        subtitle.textContent = "";
+        Array.from(text).forEach((character, index) => {
+          const span = document.createElement("span");
+          span.className = "global-subtitle-char global-subtitle-char-entering";
+          span.style.setProperty("--char-delay", `${index * charDelay}ms`);
+          span.textContent = character === " " ? "\u00a0" : character;
+          subtitle.appendChild(span);
+        });
+      };
+      const animateSubtitleChange = () => {
+        if (!subtitle || subtitleChanging) return;
+        subtitleChanging = true;
+        const currentChars = Array.from(subtitle.children);
+        currentChars.forEach((character, index) => {
+          character.classList.remove("global-subtitle-char-entering");
+          character.classList.add("global-subtitle-char-leaving");
+          character.style.setProperty("--char-delay", `${index * charDelay}ms`);
+        });
+        const exitDuration = currentChars.length * charDelay + 380;
+        window.setTimeout(() => {
+          subtitleIndex = (subtitleIndex + 1) % subtitles.length;
+          animateSubtitleIn(subtitles[subtitleIndex]);
+          window.setTimeout(() => {
+            subtitleChanging = false;
+          }, subtitles[subtitleIndex].length * charDelay + 500);
+        }, exitDuration);
+      };
+      animateSubtitleIn(subtitles[subtitleIndex]);
+      if (subtitle) {
+        window.setInterval(animateSubtitleChange, 5000);
+      }
+
+      const hero = document.getElementById("global-hero");
+      let heroFrame = 0;
+      const updateHeroProgress = () => {
+        heroFrame = 0;
+        if (!hero) return;
+        const progress = Math.min(1, Math.max(0, window.scrollY / (hero.offsetHeight * 0.72)));
+        hero.style.setProperty("--hero-progress", String(progress));
+      };
+      window.addEventListener(
+        "scroll",
+        () => {
+          if (!heroFrame) heroFrame = window.requestAnimationFrame(updateHeroProgress);
+        },
+        { passive: true },
+      );
+      updateHeroProgress();
+    </script>
+
+    <div class="sakura-fall" aria-hidden="true">//樱花效果//
       {
-        Array.from({ length: 18 }).map((_, index) => (
+        Array.from({ length: 40 }).map((_, index) => (
           <span
             style={`--sakura-left: ${(index * 37 + 3) % 100}%; --sakura-delay: -${index * 1.7}s; --sakura-duration: ${10 + (index % 5)}s;`}
           />
@@ -115,8 +186,17 @@ const jsonLd =
 
     <Navbar />
 
-    <div class="max-w-6xl mx-auto w-full flex-grow">
-      <div class="grid grid-cols-1 md:grid-cols-5 lg:grid-cols-4 gap-4 p-4 h-full">
+    <div class="global-ui-area">
+      <svg
+        class="global-ui-wave"
+        viewBox="0 0 1440 180"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        <path d="M0 92C180 150 300 42 520 86C740 130 870 42 1080 86C1250 122 1350 72 1440 96V180H0Z" />
+      </svg>
+      <div class="max-w-6xl mx-auto w-full flex-grow">
+        <div class="grid grid-cols-1 md:grid-cols-5 lg:grid-cols-4 gap-4 p-4 h-full">
         <main
           id="main-content"
           tabindex="-1"
@@ -131,6 +211,7 @@ const jsonLd =
           <Sidebar headings={headings} showTOC={showTOC} />
           <slot name="sidebar" />
         </aside>
+        </div>
       </div>
     </div>
 
