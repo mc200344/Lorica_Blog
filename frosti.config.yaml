@@ -70,7 +70,7 @@ user:
     social:
       - href: "/" # 链接
         ariaLabel: Support my work # 图标的可访问性标签
-        title: Support my work # 图标的悬浮标题
+        title: 打赏 # 图标的悬浮标题
         svg: "ri:cup-line"
       - href: "https://github.com/mc200344"
         ariaLabel: Github

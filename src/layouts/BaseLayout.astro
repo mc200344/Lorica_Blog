@@ -96,6 +96,16 @@ const jsonLd =
   </head>
 
   <body class="flex flex-col min-h-screen" {...isIndexed ? { "data-pagefind-body": true } : {}}>
+    <div class="sakura-fall" aria-hidden="true">
+      {
+        Array.from({ length: 18 }).map((_, index) => (
+          <span
+            style={`--sakura-left: ${(index * 37 + 3) % 100}%; --sakura-delay: -${index * 1.7}s; --sakura-duration: ${10 + (index % 5)}s;`}
+          />
+        ))
+      }
+    </div>
+
     <a
       href="#main-content"
       class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:btn focus:btn-primary"
